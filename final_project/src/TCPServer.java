@@ -5,7 +5,7 @@ import java.util.concurrent.locks.*;
 
 public class TCPServer {
     private static final int PORT = 8080;
-    private static final int THREAD_POOL_SIZE = 5;
+    private static final int THREAD_POOL_SIZE = 3;
     private static final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     private static final ConcurrentHashMap<String, ReentrantLock> fileLocks = new ConcurrentHashMap<>();
 
