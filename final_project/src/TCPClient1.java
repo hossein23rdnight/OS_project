@@ -57,18 +57,24 @@ public class TCPClient1 {
                             out.println("edit " + editFilename);
                             while (!(serverResponse = in.readLine()).equals("EOF")) {
                                 System.out.println(RED_TEXT + serverResponse + RESET_TEXT);
+                                if (serverResponse.equals("File is currently being edited by another client.")) {
+                                    // Return to menu if the file is being edited by another client
+                                    break;
+                                }
                             }
-                            System.out.println("Enter the new content for the file (end with EOF):");
-                            StringBuilder newContent = new StringBuilder();
-                            while (scanner.hasNextLine()) {
-                                String line = scanner.nextLine();
-                                if (line.equals("EOF")) break;
-                                newContent.append(line).append("\n");
+                            if (!serverResponse.equals("File is currently being edited by another client.")) {
+                                System.out.println("Enter the new content for the file (end with EOF):");
+                                StringBuilder newContent = new StringBuilder();
+                                while (scanner.hasNextLine()) {
+                                    String line = scanner.nextLine();
+                                    if (line.equals("EOF")) break;
+                                    newContent.append(line).append("\n");
+                                }
+                                out.print(newContent.toString());
+                                out.println("EOF");
+                                serverResponse = in.readLine();
+                                System.out.println("Server: " + RED_TEXT + serverResponse + RESET_TEXT);
                             }
-                            out.print(newContent.toString());
-                            out.println("EOF");
-                            serverResponse = in.readLine();
-                            System.out.println("Server: " + RED_TEXT + serverResponse + RESET_TEXT);
                             break;
                         case 5:
                             System.out.print("Enter filename to delete: ");

@@ -1,11 +1,13 @@
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.*;
 
 public class TCPServer {
     private static final int PORT = 8080;
-    private static final int THREAD_POOL_SIZE = 2;
+    private static final int THREAD_POOL_SIZE = 5;
     private static final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+    private static final ConcurrentHashMap<String, ReentrantLock> fileLocks = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
@@ -26,117 +28,134 @@ public class TCPServer {
             e.printStackTrace();
         }
     }
-}
-class ClientHandler implements Runnable {
-    private Socket socket;
 
-    public ClientHandler(Socket socket) {
-        this.socket = socket;
-    }
+    static class ClientHandler implements Runnable {
+        private Socket socket;
 
-    @Override
-    public void run() {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
+        }
 
-            out.println("ACK");
+        @Override
+        public void run() {
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-            String message;
-            while ((message = in.readLine()) != null) {
-                System.out.println("Received: " + message);
+                out.println("ACK");
 
-                String[] tokens = message.split(" ", 2);
-                String command = tokens[0];
-                String argument = tokens.length > 1 ? tokens[1] : "";
+                String message;
+                while ((message = in.readLine()) != null) {
+                    System.out.println("Received: " + message);
 
-                switch (command.toLowerCase()) {
-                    case "messaging":
-                        out.println(argument);
-                        break;
-                    case "create":
-                        createFile(argument, out);
-                        break;
-                    case "edit":
-                        sendFileContent(argument, out);
-                        editFile(argument, in, out);
-                        break;
-                    case "delete":
-                        deleteFile(argument, out);
-                        break;
-                    case "disconnect":
-                        out.println("Goodbye!");
-                        return;
-                    case "read":
-                        sendFileContent(argument, out);
-                        break;    
-                    default:
-                        out.println("Unknown command");
-                        break;
+                    String[] tokens = message.split(" ", 2);
+                    String command = tokens[0];
+                    String argument = tokens.length > 1 ? tokens[1] : "";
+
+                    switch (command.toLowerCase()) {
+                        case "messaging":
+                            out.println(argument);
+                            break;
+                        case "create":
+                            synchronized (this) {
+                                createFile(argument, out);
+                            }
+                            break;
+                        case "edit":
+                            ReentrantLock lock = fileLocks.computeIfAbsent(argument, k -> new ReentrantLock());
+                            if (lock.tryLock()) {
+                                try {
+                                    sendFileContent(argument, out);
+                                    editFile(argument, in, out);
+                                } finally {
+                                    lock.unlock();
+                                    fileLocks.remove(argument);
+                                }
+                            } else {
+                                out.println("File is currently being edited by another client.");
+                                out.println("EOF");
+                            }
+                            break;
+                        case "delete":
+                            synchronized (this) {
+                                deleteFile(argument, out);
+                            }
+                            break;
+                        case "read":
+                            synchronized (this) {
+                                sendFileContent(argument, out);
+                            }
+                            break;
+                        case "disconnect":
+                            out.println("Goodbye!");
+                            return;
+                        default:
+                            out.println("Unknown command");
+                            break;
+                    }
                 }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-            System.out.println("Connection with client closed");
-        }
-    }
-
-    private void createFile(String filename, PrintWriter out) {
-        try {
-            File file = new File(filename);
-            if (file.createNewFile()) {
-                out.println("File created: " + filename);
-            } else {
-                out.println("File already exists: " + filename);
-            }
-        } catch (IOException e) {
-            out.println("Error creating file: " + e.getMessage());
-        }
-    }
-
-    private void sendFileContent(String filename, PrintWriter out) {
-        File file = new File(filename);
-        if (file.exists()) {
-            try (BufferedReader fileReader = new BufferedReader(new FileReader(file))) {
-                String line;
-                while ((line = fileReader.readLine()) != null) {
-                    out.println(line);
+            } finally {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-                out.println("EOF");
+                System.out.println("Connection with client closed");
+            }
+        }
+
+        private void createFile(String filename, PrintWriter out) {
+            try {
+                File file = new File(filename);
+                if (file.createNewFile()) {
+                    out.println("File created: " + filename);
+                } else {
+                    out.println("File already exists: " + filename);
+                }
             } catch (IOException e) {
-                out.println("Error reading file: " + e.getMessage());
+                out.println("Error creating file: " + e.getMessage());
             }
-        } else {
-            out.println("File not found: " + filename);
         }
-    out.println("EOF");
 
-    }
-
-    private void editFile(String filename, BufferedReader in, PrintWriter out) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
-            String line;
-            while (!(line = in.readLine()).equals("EOF")) {
-                writer.write(line);
-                writer.newLine();
+        private void sendFileContent(String filename, PrintWriter out) {
+            File file = new File(filename);
+            if (file.exists()) {
+                try (BufferedReader fileReader = new BufferedReader(new FileReader(file))) {
+                    String line;
+                    while ((line = fileReader.readLine()) != null) {
+                        out.println(line);
+                    }
+                    out.println("EOF");
+                } catch (IOException e) {
+                    out.println("Error reading file: " + e.getMessage());
+                }
+            } else {
+                out.println("File not found: " + filename);
+                out.println("EOF");
             }
-            out.println("File edited: " + filename);
-        } catch (IOException e) {
-            out.println("Error editing file: " + e.getMessage());
         }
-    }
 
-    private void deleteFile(String filename, PrintWriter out) {
-        File file = new File(filename);
-        if (file.delete()) {
-            out.println("File deleted: " + filename);
-        } else {
-            out.println("Failed to delete file: " + filename);
+        private void editFile(String filename, BufferedReader in, PrintWriter out) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+                String line;
+                while (!(line = in.readLine()).equals("EOF")) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+                out.println("File edited: " + filename);
+            } catch (IOException e) {
+                out.println("Error editing file: " + e.getMessage());
+            }
+        }
+
+        private void deleteFile(String filename, PrintWriter out) {
+            File file = new File(filename);
+            if (file.delete()) {
+                out.println("File deleted: " + filename);
+            } else {
+                out.println("Failed to delete file: " + filename);
+            }
         }
     }
 }
