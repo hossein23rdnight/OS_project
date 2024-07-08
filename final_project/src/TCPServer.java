@@ -114,6 +114,8 @@ class ClientHandler implements Runnable {
         } else {
             out.println("File not found: " + filename);
         }
+    out.println("EOF");
+
     }
 
     private void editFile(String filename, BufferedReader in, PrintWriter out) {
