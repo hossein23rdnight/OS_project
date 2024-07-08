@@ -61,24 +61,10 @@ public class TCPServer {
                             }
                             break;
                         case "edit":
-                            ReentrantLock lock = fileLocks.computeIfAbsent(argument, k -> new ReentrantLock());
-                            if (lock.tryLock()) {
-                                try {
-                                    sendFileContent(argument, out);
-                                    editFile(argument, in, out);
-                                } finally {
-                                    lock.unlock();
-                                    fileLocks.remove(argument);
-                                }
-                            } else {
-                                out.println("File is currently being edited by another client.");
-                                out.println("EOF");
-                            }
+                            handleEdit(argument, in, out);
                             break;
                         case "delete":
-                            synchronized (this) {
-                                deleteFile(argument, out);
-                            }
+                            handleDelete(argument, out);
                             break;
                         case "read":
                             synchronized (this) {
@@ -102,6 +88,36 @@ public class TCPServer {
                     e.printStackTrace();
                 }
                 System.out.println("Connection with client closed");
+            }
+        }
+
+        private void handleEdit(String filename, BufferedReader in, PrintWriter out) {
+            ReentrantLock lock = fileLocks.computeIfAbsent(filename, k -> new ReentrantLock());
+            if (lock.tryLock()) {
+                try {
+                    sendFileContent(filename, out);
+                    editFile(filename, in, out);
+                } finally {
+                    lock.unlock();
+                    fileLocks.remove(filename);
+                }
+            } else {
+                out.println("File is currently being edited by another client.");
+                out.println("EOF");
+            }
+        }
+
+        private void handleDelete(String filename, PrintWriter out) {
+            ReentrantLock lock = fileLocks.computeIfAbsent(filename, k -> new ReentrantLock());
+            if (lock.tryLock()) {
+                try {
+                    deleteFile(filename, out);
+                } finally {
+                    lock.unlock();
+                    fileLocks.remove(filename);
+                }
+            } else {
+                out.println("File is currently being edited by another client and cannot be deleted.");
             }
         }
 
