@@ -27,7 +27,6 @@ public class TCPServer {
         }
     }
 }
-
 class ClientHandler implements Runnable {
     private Socket socket;
 
@@ -45,9 +44,34 @@ class ClientHandler implements Runnable {
             String message;
             while ((message = in.readLine()) != null) {
                 System.out.println("Received: " + message);
-                out.println(message);
-                if (message.equalsIgnoreCase("disconnect")) {
-                    break;
+
+                String[] tokens = message.split(" ", 2);
+                String command = tokens[0];
+                String argument = tokens.length > 1 ? tokens[1] : "";
+
+                switch (command.toLowerCase()) {
+                    case "messaging":
+                        out.println(argument);
+                        break;
+                    case "create":
+                        createFile(argument, out);
+                        break;
+                    case "edit":
+                        sendFileContent(argument, out);
+                        editFile(argument, in, out);
+                        break;
+                    case "delete":
+                        deleteFile(argument, out);
+                        break;
+                    case "disconnect":
+                        out.println("Goodbye!");
+                        return;
+                    case "read":
+                        sendFileContent(argument, out);
+                        break;    
+                    default:
+                        out.println("Unknown command");
+                        break;
                 }
             }
         } catch (IOException e) {
@@ -59,6 +83,58 @@ class ClientHandler implements Runnable {
                 e.printStackTrace();
             }
             System.out.println("Connection with client closed");
+        }
+    }
+
+    private void createFile(String filename, PrintWriter out) {
+        try {
+            File file = new File(filename);
+            if (file.createNewFile()) {
+                out.println("File created: " + filename);
+            } else {
+                out.println("File already exists: " + filename);
+            }
+        } catch (IOException e) {
+            out.println("Error creating file: " + e.getMessage());
+        }
+    }
+
+    private void sendFileContent(String filename, PrintWriter out) {
+        File file = new File(filename);
+        if (file.exists()) {
+            try (BufferedReader fileReader = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = fileReader.readLine()) != null) {
+                    out.println(line);
+                }
+                out.println("EOF");
+            } catch (IOException e) {
+                out.println("Error reading file: " + e.getMessage());
+            }
+        } else {
+            out.println("File not found: " + filename);
+        }
+    }
+
+    private void editFile(String filename, BufferedReader in, PrintWriter out) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+            String line;
+            while (!(line = in.readLine()).equals("EOF")) {
+                writer.write(line);
+                writer.newLine();
+            }
+            out.println("File edited: " + filename);
+        } catch (IOException e) {
+            out.println("Error editing file: " + e.getMessage());
+        }
+    }
+
+    private void deleteFile(String filename, PrintWriter out) {
+        File file = new File(filename);
+        if (file.delete()) {
+            out.println("File deleted: " + filename);
+        } else {
+            out.println("Failed to delete file: " + filename);
         }
     }
 }
