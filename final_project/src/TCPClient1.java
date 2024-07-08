@@ -5,6 +5,10 @@ import java.util.Scanner;
 public class TCPClient1 {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 8080;
+    
+    // ANSI escape code for red text
+    private static final String RED_TEXT = "\033[0;31m";
+    private static final String RESET_TEXT = "\033[0m";
 
     public static void main(String[] args) {
         try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
@@ -13,7 +17,7 @@ public class TCPClient1 {
              Scanner scanner = new Scanner(System.in)) {
 
             String serverResponse = in.readLine();
-            System.out.println("Server: " + serverResponse);
+            System.out.println("Server: " + RED_TEXT + serverResponse + RESET_TEXT);
 
             if ("ACK".equals(serverResponse)) {
                 while (true) {
@@ -34,7 +38,7 @@ public class TCPClient1 {
                             out.println("messaging " + message);
                             System.out.println("Client: " + message);
                             serverResponse = in.readLine();
-                            System.out.println("Server: " + serverResponse);
+                            System.out.println("Server: " + RED_TEXT + serverResponse + RESET_TEXT);
                             break;
                         case 2:
                             out.println("disconnect");
@@ -45,14 +49,14 @@ public class TCPClient1 {
                             String createFilename = scanner.nextLine();
                             out.println("create " + createFilename);
                             serverResponse = in.readLine();
-                            System.out.println("Server: " + serverResponse);
+                            System.out.println("Server: " + RED_TEXT + serverResponse + RESET_TEXT);
                             break;
                         case 4:
                             System.out.print("Enter filename to edit: ");
                             String editFilename = scanner.nextLine();
                             out.println("edit " + editFilename);
                             while (!(serverResponse = in.readLine()).equals("EOF")) {
-                                System.out.println(serverResponse);
+                                System.out.println(RED_TEXT + serverResponse + RESET_TEXT);
                             }
                             System.out.println("Enter the new content for the file (end with EOF):");
                             StringBuilder newContent = new StringBuilder();
@@ -64,21 +68,21 @@ public class TCPClient1 {
                             out.print(newContent.toString());
                             out.println("EOF");
                             serverResponse = in.readLine();
-                            System.out.println("Server: " + serverResponse);
+                            System.out.println("Server: " + RED_TEXT + serverResponse + RESET_TEXT);
                             break;
                         case 5:
                             System.out.print("Enter filename to delete: ");
                             String deleteFilename = scanner.nextLine();
                             out.println("delete " + deleteFilename);
                             serverResponse = in.readLine();
-                            System.out.println("Server: " + serverResponse);
+                            System.out.println("Server: " + RED_TEXT + serverResponse + RESET_TEXT);
                             break;
                         case 6:
                             System.out.print("Enter filename to read: ");
                             String readFilename = scanner.nextLine();
                             out.println("read " + readFilename);
                             while (!(serverResponse = in.readLine()).equals("EOF")) {
-                                System.out.println(serverResponse);
+                                System.out.println(RED_TEXT + serverResponse + RESET_TEXT);
                             }
                             break;
                         default:
