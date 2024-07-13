@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
-public class TCPClient2 {
+public class TCPClient2s {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 8080;
     

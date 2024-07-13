@@ -111,7 +111,11 @@ public class TCPServer {
             ReentrantLock lock = fileLocks.computeIfAbsent(filename, k -> new ReentrantLock());
             if (lock.tryLock()) {
                 try {
-                    deleteFile(filename, out);
+                    if (fileLocks.get(filename).isLocked() && fileLocks.get(filename) != lock) {
+                        out.println("File is currently being edited by another client and cannot be deleted.");
+                    } else {
+                        deleteFile(filename, out);
+                    }
                 } finally {
                     lock.unlock();
                     fileLocks.remove(filename);
