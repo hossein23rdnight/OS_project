@@ -4,11 +4,13 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class TCPServer {
+public class TCPServer2 {
     private static final int PORT = 8080;
     private static final int THREAD_POOL_SIZE = 5;
     private static final AtomicInteger imeiCounter = new AtomicInteger(1000000);
     private static final Map<String, Socket> clientMap = new ConcurrentHashMap<>();
+    private static final String HEALTH_LOG_FILE = "all_health_data.log";
+    private static final String LOCATION_LOG_FILE = "all_location_data.log";
 
     public static void main(String[] args) {
         ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
@@ -90,9 +92,9 @@ public class TCPServer {
                 String message;
                 while ((message = in.readLine()) != null) {
                     if (message.startsWith("[3G*") && message.contains("*HEALTH*")) {
-                        logData(imeiCode + "_health_log.txt", message);
+                        logData(HEALTH_LOG_FILE, imeiCode + ": " + message);
                     } else if (message.startsWith("[3G*") && message.contains("*UD,")) {
-                        logData(imeiCode + "_location_log.txt", message);
+                        logData(LOCATION_LOG_FILE, imeiCode + ": " + message);
                     }
                 }
             } catch (IOException e) {
