@@ -18,7 +18,6 @@ public class TCPClient {
             System.out.println("Server response: " + serverResponse);
             String imeiCode = serverResponse.split(": ")[1];
 
-            // Thread for sending periodic health data
             new Thread(() -> {
                 try {
                     while (!Thread.currentThread().isInterrupted()) {
@@ -31,7 +30,6 @@ public class TCPClient {
                 }
             }).start();
 
-            // Thread for sending periodic location data
             new Thread(() -> {
                 try {
                     while (!Thread.currentThread().isInterrupted()) {
@@ -44,10 +42,8 @@ public class TCPClient {
                 }
             }).start();
 
-            // Handle server commands
             handleServerCommands(in, out, imeiCode);
 
-            // User interaction menu
             userMenu(scanner, in, out);
 
         } catch (IOException e) {

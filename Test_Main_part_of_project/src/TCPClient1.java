@@ -2,11 +2,10 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
-public class TCPClient2s {
+public class TCPClient1 {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 8080;
     
-    // ANSI escape code for red text
     private static final String RED_TEXT = "\033[0;31m";
     private static final String RESET_TEXT = "\033[0m";
 
@@ -58,7 +57,6 @@ public class TCPClient2s {
                             while (!(serverResponse = in.readLine()).equals("EOF")) {
                                 System.out.println(RED_TEXT + serverResponse + RESET_TEXT);
                                 if (serverResponse.equals("File is currently being edited by another client.")) {
-                                    // Return to menu if the file is being edited by another client
                                     break;
                                 }
                             }
