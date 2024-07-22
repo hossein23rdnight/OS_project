@@ -48,7 +48,7 @@ public class TCPClient2 {
             handleServerCommands(in, out, imeiCode);
 
             // User interaction menu
-            userMenu(scanner, out);
+            userMenu(scanner, in, out);
 
         } catch (IOException e) {
             System.out.println("Failed to connect or communicate with the server: " + e.getMessage());
@@ -93,10 +93,12 @@ public class TCPClient2 {
         }).start();
     }
 
-    private static void userMenu(Scanner scanner, PrintWriter out) {
+    private static void userMenu(Scanner scanner, BufferedReader in, PrintWriter out) {
         while (!Thread.currentThread().isInterrupted()) {
             System.out.println("Menu:");
             System.out.println("1. Disconnect");
+            System.out.println("2. Read all_health_data");
+            System.out.println("3. Read all_location_data");
             System.out.print("Enter your choice: ");
             int choice = scanner.nextInt();
             scanner.nextLine();
@@ -105,9 +107,28 @@ public class TCPClient2 {
                 out.println("DISCONNECT");
                 System.out.println("Disconnected from the server.");
                 break;
+            } else if (choice == 2 || choice == 3) {
+                String filename = (choice == 2) ? "all_health_data.log" : "all_location_data.log";
+                out.println("read " + filename);
+                readServerResponse(in);
             } else {
                 System.out.println("Invalid choice. Try again.");
             }
+        }
+    }
+
+    private static void readServerResponse(BufferedReader in) {
+        try {
+            String serverResponse;
+            while (true) {
+                serverResponse = in.readLine();
+                if (serverResponse == null || serverResponse.equals("EOF")) {
+                    break;
+                }
+                System.out.println(serverResponse);
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading server response: " + e.getMessage());
         }
     }
 }

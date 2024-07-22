@@ -3,6 +3,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class TCPServer2 {
     private static final int PORT = 8080;
@@ -11,6 +12,10 @@ public class TCPServer2 {
     private static final Map<String, Socket> clientMap = new ConcurrentHashMap<>();
     private static final String HEALTH_LOG_FILE = "all_health_data.log";
     private static final String LOCATION_LOG_FILE = "all_location_data.log";
+
+    // Locks for each file
+    private static final ReentrantReadWriteLock healthLogLock = new ReentrantReadWriteLock();
+    private static final ReentrantReadWriteLock locationLogLock = new ReentrantReadWriteLock();
 
     public static void main(String[] args) {
         ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
@@ -92,9 +97,11 @@ public class TCPServer2 {
                 String message;
                 while ((message = in.readLine()) != null) {
                     if (message.startsWith("[3G*") && message.contains("*HEALTH*")) {
-                        logData(HEALTH_LOG_FILE, imeiCode + ": " + message);
+                        logData(HEALTH_LOG_FILE, imeiCode + ": " + message, healthLogLock);
                     } else if (message.startsWith("[3G*") && message.contains("*UD,")) {
-                        logData(LOCATION_LOG_FILE, imeiCode + ": " + message);
+                        logData(LOCATION_LOG_FILE, imeiCode + ": " + message, locationLogLock);
+                    } else if (message.startsWith("read ")) {
+                        handleReadRequest(out, message.split(" ")[1]);
                     }
                 }
             } catch (IOException e) {
@@ -109,11 +116,33 @@ public class TCPServer2 {
             }
         }
 
-        private void logData(String filename, String data) {
+        private void logData(String filename, String data, ReentrantReadWriteLock lock) {
+            lock.writeLock().lock();
             try (PrintWriter log = new PrintWriter(new FileOutputStream(new File(filename), true))) {
                 log.println(data);
             } catch (FileNotFoundException e) {
                 System.out.println("Error logging data: " + e.getMessage());
+            } finally {
+                lock.writeLock().unlock();
+            }
+        }
+
+        private void handleReadRequest(PrintWriter out, String filename) {
+            ReentrantReadWriteLock lock = filename.equals(HEALTH_LOG_FILE) ? healthLogLock : locationLogLock;
+            lock.readLock().lock();
+            try (BufferedReader fileReader = new BufferedReader(new FileReader(filename))) {
+                String line;
+                while ((line = fileReader.readLine()) != null) {
+                    out.println(line);
+                }
+                out.println("EOF");
+                out.println(null);
+
+            } catch (IOException e) {
+                out.println("Error reading file: " + e.getMessage());
+            } finally {
+                lock.readLock().unlock();
+                out.println("EOF");
             }
         }
 
